@@ -1,0 +1,121 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Servo.h>
+
+/*  D12 trigger 1
+    D11 Echo 1
+    D10 trigger 2
+    D9 Echo 2
+    D8 Buzzer
+    D7 sensor suhu
+    D6 LED merah
+    D5 LED hijau
+    D4 Servo
+    A4 SCL LCD
+    A5 SDA LCD
+*/
+// Servo
+Servo servo;
+
+//ultrasonic 1
+#define echoPin1 12
+#define trigPin1 11
+
+//ultrasonic 2
+#define echoPin2 10
+#define trigPin2 9
+
+long duration1, duration2;
+int distance1, distance2;
+int awal = 0;
+
+//DS18B20
+#define ONE_WIRE_BUS 7 
+OneWire oneWire(ONE_WIRE_BUS); 
+DallasTemperature sensors(&oneWire);
+
+//LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void setup() {
+
+  DDRB = 0x0B; //00001011 pin D11, D9, dan D8 output lainnya input
+  DDRD = 0xF0; //11110000 pin D7, D6 dan D5 output lainnya input
+
+  servo.attach(4);
+  sensors.begin();
+  Serial.begin(9600);
+
+  lcd.init();
+  lcd.backlight();
+
+}
+
+void loop() {
+  // LED merah dan hijau
+  digitalWrite(6,LOW);
+  digitalWrite(5,HIGH);
+
+  //buzzer
+  digitalWrite(8,LOW);
+  
+  // Ultrasonic 1
+  digitalWrite(trigPin1, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin1,LOW);
+  
+  duration1 = pulseIn(echoPin1, HIGH);
+
+  distance1 = duration1 * 0.034 / 2;
+
+  // Ultrasonic 2
+  digitalWrite(trigPin2, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin2, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin2,LOW);
+  
+  duration2 = pulseIn(echoPin2, HIGH);
+
+  distance2 = duration2 * 0.034 / 2;
+  
+  if(distance1 <= 5){
+    //sensor suhu
+    sensors.requestTemperatures();
+    delay(500);
+    Serial.print(sensors.getTempCByIndex(0));
+    delay(500);
+    
+    //buzzer
+    digitalWrite(8,HIGH);
+      
+    //servo
+    for (awal= 0; awal <=180; awal += 1){
+      servo.write(awal);
+      delay(15);
+    }
+    for (awal = 180; awal >= 0; awal -= 1){
+      servo.write(awal);
+      delay(15);
+    }
+    
+    // LED 
+    digitalWrite(6,HIGH);
+    delay(500);
+    digitalWrite(5,LOW);
+    delay(500);
+
+    // LCD
+     lcd.setCursor(0,0);
+     lcd.print("Suhu Anda :");
+     lcd.setCursor(0,1);
+     lcd.print(sensors.getTempCByIndex(0));
+  }
+  
+}
