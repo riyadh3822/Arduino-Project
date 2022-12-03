@@ -1,0 +1,172 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+/*  D12 trigger 1
+    D11 Echo 1
+    D10 trigger 2
+    D9 Echo 2
+    D8 Buzzer
+    D7 sensor suhu
+    D6 LED merah
+    D5 LED hijau
+    D4 water pump
+    A4 SCL LCD
+    A5 SDA LCD
+*/
+
+//ultrasonic 1
+#define trigPin1 12
+#define echoPin1 11
+
+//ultrasonic 2
+#define trigPin2 10
+#define echoPin2 9
+
+long duration1, duration2;
+int distance1, distance2;
+int rumus, presentase;
+int awal = 0;
+
+//DS18B20
+#define ONE_WIRE_BUS 7 
+OneWire oneWire(ONE_WIRE_BUS); 
+DallasTemperature sensors(&oneWire);
+
+// water pump
+const int pompa = 4; 
+
+//LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// LED
+#define LED1 5
+#define LED2 6
+
+//buzzer
+#define buzzer 8
+
+
+void setup() {
+
+  pinMode(trigPin1, OUTPUT); 
+  pinMode(echoPin1, INPUT); 
+  pinMode(trigPin2, OUTPUT); 
+  pinMode(echoPin2, INPUT); 
+  pinMode(LED1,OUTPUT);
+  pinMode(LED2,OUTPUT);
+  pinMode(buzzer,OUTPUT);
+  pinMode(pompa, OUTPUT);
+  
+  //DDRB = 0x0B; //00001011 pin D11, D9, dan D8 output lainnya input
+  // DDRD = 0xF0; //11110000 pin D7, D6 dan D5 output lainnya input
+  
+  sensors.begin();
+  Serial.begin(9600);
+
+  lcd.init();
+  lcd.backlight();
+
+}
+
+void loop() {
+
+  //buzzer
+  digitalWrite(buzzer,LOW);
+  
+  // Ultrasonic 1
+  digitalWrite(trigPin1, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin1,LOW);
+  
+  duration1 = pulseIn(echoPin1, HIGH);
+
+  distance1 = (duration1/2) / 29.1;
+
+  // Ultrasonic 2
+  digitalWrite(trigPin2, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin2, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin2,LOW);
+  
+  duration2 = pulseIn(echoPin2, HIGH);
+
+  distance2 = (duration2/2) / 29.1;
+  Serial.print("Distance: ");
+  Serial.println(distance1);
+  Serial.print(distance2);
+
+  rumus = distance2* 100 / 14;
+  presentase = 100 - rumus;
+
+  // water pump
+  digitalWrite(pompa,HIGH);
+
+  if(presentase < 16){
+    digitalWrite(LED2,HIGH);
+    
+     lcd.clear();
+     lcd.setCursor(0,0);
+     lcd.print("Kapasitas Kurang");
+     lcd.setCursor(0,1);
+     lcd.print("Segera Diisi!!");
+     delay(2000);
+  }
+
+  if(distance1 < 3){
+    //sensor suhu
+    sensors.requestTemperatures();
+    delay(500);
+    Serial.print(sensors.getTempCByIndex(0));
+    delay(500);
+
+    // LED 
+    digitalWrite(LED2,HIGH);
+    delay(1000);
+    digitalWrite(LED1,LOW);
+    delay(1000);
+    
+    //buzzer
+    digitalWrite(buzzer,HIGH);
+    delay(500);
+
+    //water pump
+    digitalWrite(pompa,LOW);
+    delay(100);
+      
+    //LCD
+     lcd.clear();
+     lcd.setCursor(0,0);
+     lcd.print("Suhu Anda :");
+     lcd.setCursor(0,1);
+     lcd.print(sensors.getTempCByIndex(0));
+     delay(1500);
+     
+  }
+  else{
+    // LED
+    digitalWrite(LED2,LOW);
+    digitalWrite(LED1,HIGH);
+
+    //LCD
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Selamat Datang");
+    lcd.setCursor(0,1);
+    lcd.print("Kapasitas: ");
+    lcd.print(presentase);
+    lcd.print("%");
+
+    // water pump
+    digitalWrite(pompa,HIGH);
+
+
+  }
+  
+}
